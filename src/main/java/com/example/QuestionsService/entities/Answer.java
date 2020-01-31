@@ -17,7 +17,9 @@ public class Answer {
     String  questionId;
     String  userId;
     Integer  likeCount;
+    List<String> likeUserList;
     Integer  dislikeCount;
+    List<String> dislikeUserList;
     String  answerBody;
     Date date=new Date();
     Boolean  approvalFlag=true;

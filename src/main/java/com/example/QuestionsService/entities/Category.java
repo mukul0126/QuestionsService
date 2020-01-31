@@ -11,8 +11,8 @@ import java.util.List;
 @Setter
 @Document(collection = "Category")
 public class Category {
-
+   @Id
     String categoryId;
-    String categoryName;
-    List<String> tags;
+//    String categoryName;
+//    List<String> tags;
 }

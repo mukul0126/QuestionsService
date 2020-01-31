@@ -11,7 +11,7 @@ public class QuestionDto {
     String userId;
     String categoryId;
     String questionBody;
-    String tag;
+//    String tag;
     List<String> personsTag;
     String orgId;
 }

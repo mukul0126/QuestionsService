@@ -1,21 +1,15 @@
 package com.example.QuestionsService.controllers;
 
-import com.example.QuestionsService.dtos.Feign.FollowingOrganizationCategoryDTO;
+
 import com.example.QuestionsService.dtos.requestdto.CategoryDto;
 import com.example.QuestionsService.dtos.requestdto.QuestionDto;
-import com.example.QuestionsService.dtos.responsedto.FeedDto;
 import com.example.QuestionsService.dtos.responsedto.QuestionListDto;
+import com.example.QuestionsService.dtos.responsedto.ResponseString;
 import com.example.QuestionsService.entities.Category;
 import com.example.QuestionsService.entities.Question;
-import com.example.QuestionsService.services.AnswerService;
 import com.example.QuestionsService.services.CategoryService;
 import com.example.QuestionsService.services.QuestionService;
-import jdk.nashorn.internal.objects.annotations.Getter;
-import org.apache.kafka.common.protocol.types.Field;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,20 +25,27 @@ public class QuestionsController {
     @Autowired
     CategoryService categoryService;
     @PostMapping(value = "/add")
-    public ResponseEntity<String> add(@RequestBody QuestionDto question){
-
-
+    public ResponseString add(@RequestBody QuestionDto question){
         Question question2=questionService.save(question);
-        return new ResponseEntity<String>(question2.getQuestionId(),HttpStatus.CREATED);
+        ResponseString responseString=new ResponseString();
+        responseString.setId(question2.getQuestionId());
+        return  responseString;
+
     }
 
-    @PutMapping(value = "/likequestion/{questionId}")
-    public  String likeQuestion(@PathVariable("questionId") String questionId){
-        return  questionService.like(questionId);
+    @PutMapping(value = "/likequestion/{questionId}/{userId}")
+    public  ResponseString likeQuestion(@PathVariable("questionId") String questionId ,@PathVariable("userId") String userId){
+       String id=  questionService.like(questionId,userId);
+       ResponseString responseString=new ResponseString();
+       responseString.setId(id);
+       return  responseString;
     }
-    @PutMapping(value = "/dislikequestion/{questionId}")
-    public  String dislikeQuestion(@PathVariable("questionId") String questionId){
-        return  questionService.disLike(questionId);
+    @PutMapping(value = "/dislikequestion/{questionId}/{userId}")
+    public  ResponseString dislikeQuestion(@PathVariable("questionId") String questionId , @PathVariable("userId") String  userId){
+        String id=  questionService.disLike(questionId,userId);
+        ResponseString responseString=new ResponseString();
+        responseString.setId(id);
+        return  responseString;
     }
     @PostMapping(value = "/addcategory")
     public Category addcategory(@RequestBody CategoryDto categoryDto){
@@ -63,10 +64,24 @@ public class QuestionsController {
     public QuestionListDto getAllQuestions(){
         return questionService.getAllQuestions();
     }
+
     @GetMapping(value = "/getQuestionsByUserIdApproved/{userId}")
     public QuestionListDto getQuestionsByUserIdApproved(@PathVariable("userId")  String userId){
         return questionService.getQuestionsByUserIdApproved(userId);
     }
+    @PutMapping(value = "/approveQuestionByModerator/{questionId}")
+    public Boolean approveQuestionByModerator(@PathVariable("questionId")  String questionId){
+        return  questionService.approveQuestionByModerator(questionId);
+    }
+    @PutMapping(value = "/disapproveQuestionByModerator/{questionId}")
+    public Boolean disapproveQuestionByModerator(@PathVariable("questionId")  String questionId){
+        return  questionService.disapproveQuestionByModerator(questionId);
+    }
+    @PutMapping(value="/choosingBestAnswer/{questionId}/{answerId}")
+    public Boolean choosingBestAnswer(@PathVariable("questionId") String questionId,@PathVariable("answerId") String answerId){
+        return  questionService.choosingBestAnswer(questionId,answerId);
+    }
+
 
 
 

@@ -17,10 +17,12 @@ public class Question {
     String questionId;
     String userId;
     Integer likeCount;
+    List<String> likeUserList;
     Integer dislikeCount;
+    List<String> dislikeUserList;
     List<String> answersList;
     String categoryId;
-    String tag;
+//    String tag;
     String questionBody;
     Date date=new Date();
     Boolean approvalFlag=true;

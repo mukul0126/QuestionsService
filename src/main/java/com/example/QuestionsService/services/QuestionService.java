@@ -12,8 +12,8 @@ import java.util.Set;
 public interface QuestionService {
 
     Question save(QuestionDto question);
-    String like(String questionid);
-    String disLike(String questionid);
+    String like(String questionid,String userId);
+    String disLike(String questionid,String userId);
     Boolean addAnswer(String questionId,String answerId);
 
    List<Question> getFeed(String userId);
@@ -23,4 +23,9 @@ public interface QuestionService {
     QuestionListDto getAllQuestions();
 
     QuestionListDto getQuestionsByUserIdApproved(String userId);
+
+    Boolean approveQuestionByModerator(String questionId);
+    Boolean disapproveQuestionByModerator(String questionId) ;
+
+    Boolean choosingBestAnswer(String questionId, String answerId);
 }
