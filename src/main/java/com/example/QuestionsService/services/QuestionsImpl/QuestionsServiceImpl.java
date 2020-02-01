@@ -2,14 +2,15 @@ package com.example.QuestionsService.services.QuestionsImpl;
 
 import com.example.QuestionsService.dtos.Feign.FollowingOrganizationCategoryDTO;
 import com.example.QuestionsService.dtos.requestdto.QuestionDto;
-import com.example.QuestionsService.dtos.responsedto.FeedDto;
-import com.example.QuestionsService.dtos.responsedto.QuestionListDto;
+import com.example.QuestionsService.dtos.responsedto.*;
 import com.example.QuestionsService.entities.Answer;
 import com.example.QuestionsService.entities.Question;
 import com.example.QuestionsService.repositories.AnswerRepository;
 import com.example.QuestionsService.repositories.QuestionRepository;
 import com.example.QuestionsService.services.FeignService.UserFeign;
 import com.example.QuestionsService.services.QuestionService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,11 @@ public class QuestionsServiceImpl implements QuestionService {
     AnswerRepository answerRepository;
     @Autowired
     private KafkaTemplate<String,Question> kafkaTemplate;
+//    private KafkaTemplate<String,NotificationDto> kafkaTemplate1;
     private static final String TOPIC = "questionJson";
+    @Autowired
+    KafkaTemplate<String, String> kafkaTemplate1;
+    private static final String TOPIC1 = "QuoraListener";
 
     @Override
     public Boolean approveQuestionByModerator(String questionId) {
@@ -37,6 +42,9 @@ public class QuestionsServiceImpl implements QuestionService {
        questionRepository.save(question);
 
         // send notifications
+        OrganizationFollowersAndCategoryFollowersDTO organizationFollowersAndCategoryFollowersDTO=userFeign.getOrganizationFollowers(question.getOrgId(),question.getCategoryId());
+        System.out.println(organizationFollowersAndCategoryFollowersDTO.getCategoryFollowers());
+        System.out.println(organizationFollowersAndCategoryFollowersDTO.getOrganizationFollowers());
         return  true;
     }
     @Override
@@ -67,12 +75,20 @@ public class QuestionsServiceImpl implements QuestionService {
         if(optionalAnswer.isPresent()) {
            answer = optionalAnswer.get();
           userId = answer.getUserId();
-            userFeign.increaseScoreBy1(answer.getUserId());
+            userFeign.increaseBy5(userId);
 
         }
-
+   //send notification to owner
         return  true;
 
+    }
+
+    @Override
+    public QuestionListDto getQuestionByOrganiztionId(String organizationId) {
+        List<Question> list=questionRepository.findAllByOrgId(organizationId);
+        QuestionListDto questionListDto=new QuestionListDto();
+        questionListDto.setQuestionList(list);
+        return  questionListDto;
     }
 
     @Override
@@ -81,7 +97,7 @@ public class QuestionsServiceImpl implements QuestionService {
         question1.setCategoryId(question.getCategoryId());
         question1.setQuestionBody(question.getQuestionBody());
         question1.setUserId(question.getUserId());
-
+        question1.setUserName(question.getUserName());
 
 //      question1.setTag(question.getTag());
         if(question.getOrgId()!=null){
@@ -99,8 +115,25 @@ public class QuestionsServiceImpl implements QuestionService {
         }
       userFeign.increaseScoreBy10(question.getUserId());
 
-//      List<String> list=
-       // send notifications to followers,category followers,tagged persons, organisation followers if orgid is there
+
+       // send notifications to followers,category followers,tagged persons
+
+        FollowersAndCategoryFollowingDTO followersAndCategoryFollowingDTO =userFeign.getallFollowers(question2.getUserId(),question2.getCategoryId());
+        System.out.println(followersAndCategoryFollowingDTO.getCategoryFollowing());
+        System.out.println(followersAndCategoryFollowingDTO.getFollowers());
+        NotificationDto notificationDto=new NotificationDto();
+        notificationDto.setAppId("quora");
+        notificationDto.setTitle(question.getUserName()+"ha posted a question");
+        notificationDto.setUserId(followersAndCategoryFollowingDTO.getFollowers());
+        try {
+            kafkaTemplate1.send(TOPIC1, (new ObjectMapper()).writeValueAsString(notificationDto));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+//        kafkaTemplate1.send(TOPIC1, notificationDto);
+        //send data
+        //send the notif to
+
 
         return  question2;
     }
@@ -115,23 +148,40 @@ public class QuestionsServiceImpl implements QuestionService {
         else
             return  "id not found";
 
-        if(question.getLikeCount()!=null)
-            question.setLikeCount(question.getLikeCount()+1);
-        else
-            question.setLikeCount(1);
-
-        if(question.getLikeUserList()==null){
-            List<String> list=new ArrayList<String>();
-            list.add(userId);
-            question.setLikeUserList(list);
-        }
-        else{
+        if(question.getLikeCount()!=null) {
             List<String> list=question.getLikeUserList();
-            list.add(userId);
-            question.setLikeUserList(list);
+            List<String> list1=question.getDislikeUserList();
+            if(!list.contains(userId) && !list1.contains(userId)) {
+                list.add(userId);
+                question.setLikeUserList(list);
+                question.setLikeCount(question.getLikeCount() + 1);
+            }
         }
+        else {
+            List<String> list1=question.getDislikeUserList();
+            if(list1==null) {
+                    List<String> list = new ArrayList<String>();
+                list.add(userId);
+                question.setLikeUserList(list);
+                question.setLikeCount(1);
+            }
+            else{
+                if(!list1.contains(userId)){
+                    List<String> list = new ArrayList<String>();
+                    list.add(userId);
+                    question.setLikeUserList(list);
+                    question.setLikeCount(1);
+                }
+            }
+        }
+
+
 
         // send data and notification
+
+        List<String> followerslist=userFeign.getOnlyFollowers(question.getUserId());
+        System.out.println(followerslist);
+
 
         questionRepository.save(question);
 
@@ -146,24 +196,38 @@ public class QuestionsServiceImpl implements QuestionService {
         else
             return  "id not found";
 
-        if(question.getDislikeCount()!=null)
-            question.setDislikeCount(question.getDislikeCount()+1);
-        else
-            question.setDislikeCount(1);
+        if(question.getDislikeCount()!=null) {
 
-
-        if(question.getDislikeUserList()==null){
-            List<String> list=new ArrayList<String>();
-            list.add(userId);
-            question.setDislikeUserList(list);
-        }
-        else{
             List<String> list=question.getDislikeUserList();
-            list.add(userId);
-            question.setDislikeUserList(list);
+            List<String> list1=question.getLikeUserList();
+            if(!list.contains(userId) && !list1.contains(userId)) {
+                list.add(userId);
+                question.setDislikeUserList(list);
+                question.setDislikeCount(question.getDislikeCount() + 1);
+            }
         }
-        // send data and notification
+        else {
+            List<String> list1=question.getLikeUserList();
+            if(list1==null) {
+                List<String> list = new ArrayList<String>();
+                list.add(userId);
+                question.setDislikeUserList(list);
+                question.setDislikeCount(1);
+            }
+            else{
+                if(!list1.contains(userId)){
+                    List<String> list = new ArrayList<String>();
+                    list.add(userId);
+                    question.setDislikeUserList(list);
+                    question.setDislikeCount(1);
+                }
+            }
+        }
 
+
+
+        // send data and notification
+        //owner id par bhi notification
         questionRepository.save(question);
 
         return  question.getQuestionId();

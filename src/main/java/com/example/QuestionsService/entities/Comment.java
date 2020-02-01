@@ -18,4 +18,5 @@ public class Comment {
     String answerId;
     String UserId;
     Date date=new Date();
+    String userName;
 }

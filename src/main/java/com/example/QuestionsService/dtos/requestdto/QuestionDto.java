@@ -14,4 +14,5 @@ public class QuestionDto {
 //    String tag;
     List<String> personsTag;
     String orgId;
+    String userName;
 }

@@ -13,5 +13,6 @@ public class AnswerDto {
     String  userId;
     String  answerBody;
     String orgId;
+    String userName;
 
 }

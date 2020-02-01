@@ -81,6 +81,10 @@ public class QuestionsController {
     public Boolean choosingBestAnswer(@PathVariable("questionId") String questionId,@PathVariable("answerId") String answerId){
         return  questionService.choosingBestAnswer(questionId,answerId);
     }
+    @GetMapping(value = "/getQuestionByOrganiztionId/{organizationId}")
+   public  QuestionListDto getQuestionByOrganiztionId(@PathVariable("organizationId") String organizationId){
+        return  questionService.getQuestionByOrganiztionId(organizationId);
+    }
 
 
 

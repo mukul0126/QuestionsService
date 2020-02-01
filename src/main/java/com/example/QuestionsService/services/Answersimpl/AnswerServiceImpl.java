@@ -1,6 +1,7 @@
 package com.example.QuestionsService.services.Answersimpl;
 
 import com.example.QuestionsService.dtos.requestdto.AnswerDto;
+import com.example.QuestionsService.dtos.responsedto.FollowersAndCategoryFollowingDTO;
 import com.example.QuestionsService.dtos.responsedto.QuestionAnswerDto;
 import com.example.QuestionsService.entities.Answer;
 import com.example.QuestionsService.entities.Question;
@@ -33,13 +34,17 @@ public class AnswerServiceImpl implements AnswerService {
         answer.setAnswerBody(answerDto.getAnswerBody());
         answer.setQuestionId(answerDto.getQuestionId());
         answer.setUserId(answerDto.getUserId());
-
+        answer.setUserName(answerDto.getUserName());
         if(answerDto.getOrgId()!=null){
             answer.setOrgId(answerDto.getOrgId());
             answer.setApprovalFlag(false);
         }
 
         Answer answer1=   answerRepository.save(answer);
+        String questionid=answer1.getQuestionId();
+        Optional<Question> questionOptional=questionRepository.findById(questionid);
+        Question question=questionOptional.get();
+
          questionService.addAnswer(answer1.getQuestionId(),answer1.getAnswerId());
 
         if(answerDto.getOrgId()!=null) {
@@ -47,6 +52,11 @@ public class AnswerServiceImpl implements AnswerService {
         }
 
         //send notification
+        FollowersAndCategoryFollowingDTO followersAndCategoryFollowingDTO =userFeign.getallFollowers(question.getUserId(),question.getCategoryId());
+        System.out.println(followersAndCategoryFollowingDTO.getCategoryFollowing());
+        System.out.println(followersAndCategoryFollowingDTO.getFollowers());
+        //get owner id of answer
+
         return  answer1;
     }
 
@@ -76,26 +86,46 @@ public class AnswerServiceImpl implements AnswerService {
         else
             return  "id not found";
 
-        if(answer.getLikeCount()!=null)
-            answer.setLikeCount(answer.getLikeCount()+1);
-        else
-            answer.setLikeCount(1);
-
-        if(answer.getLikeUserList()==null){
-            List<String> list=new ArrayList<String>();
-            list.add(userId);
-            answer.setLikeUserList(list);
-        }
-        else{
+        if(answer.getLikeCount()!=null) {
             List<String> list=answer.getLikeUserList();
-            list.add(userId);
-            answer.setLikeUserList(list);
+            List<String> list1= answer.getDislikeUserList();
+            if(!list.contains(userId) && !list1.contains(userId)) {
+                list.add(userId);
+                answer.setLikeUserList(list);
+                answer.setLikeCount(answer.getLikeCount() + 1);
+            }
         }
+        else {
+            List<String> list1=answer.getDislikeUserList();
+            if(list1==null) {
+                List<String> list = new ArrayList<String>();
+                list.add(userId);
+                answer.setLikeUserList(list);
+                answer.setLikeCount(1);
+            }
+            else{
+                if(!list1.contains(userId)){
+                    List<String> list = new ArrayList<String>();
+                    list.add(userId);
+                    answer.setLikeUserList(list);
+                    answer.setLikeCount(1);
+                }
+            }
+        }
+
+
 
         // send data and notification
 
-        answerRepository.save(answer);
+      Answer answer1=  answerRepository.save(answer);
         userFeign.increaseScoreBy1(answer.getUserId());
+
+        String questionid=answer1.getQuestionId();
+        Optional<Question> questionOptional=questionRepository.findById(questionid);
+        Question question=questionOptional.get();
+
+        List<String> followerslist=userFeign.getOnlyFollowers(question.getUserId());
+        System.out.println(followerslist);
         return  answer.getAnswerId();
     }
 
@@ -134,22 +164,23 @@ public class AnswerServiceImpl implements AnswerService {
         else
             return  "id not found";
 
-        if(answer.getDislikeCount()!=null)
-            answer.setDislikeCount(answer.getDislikeCount()+1);
-        else
-            answer.setDislikeCount(1);
-
-
-        if(answer.getDislikeUserList()==null){
+        if(answer.getDislikeCount()!=null) {
+            List<String> list=answer.getDislikeUserList();
+            List<String> list1=answer.getLikeUserList();
+            if(!list.contains(userId) && !list1.contains(userId)) {
+                list.add(userId);
+                answer.setDislikeUserList(list);
+                answer.setDislikeCount(answer.getDislikeCount() + 1);
+            }
+        }
+        else {
             List<String> list=new ArrayList<String>();
             list.add(userId);
             answer.setDislikeUserList(list);
+            answer.setDislikeCount(1);
         }
-        else{
-            List<String> list=answer.getDislikeUserList();
-            list.add(userId);
-            answer.setDislikeUserList(list);
-        }
+
+
 
         // send data and notification
 

@@ -10,4 +10,5 @@ public class CommentDto {
     String parentId;
     String answerId;
     String UserId;
+    String userName;
 }

@@ -25,4 +25,5 @@ public class Answer {
     Boolean  approvalFlag=true;
     List<String> commentsList;
     String orgId;
+    String userName;
 }

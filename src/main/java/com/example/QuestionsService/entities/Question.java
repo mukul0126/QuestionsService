@@ -28,6 +28,7 @@ public class Question {
     Boolean approvalFlag=true;
     String bestAnswerId;
     String orgId;
+    String userName;
 
 
     @Override

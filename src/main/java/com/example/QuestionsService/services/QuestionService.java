@@ -28,4 +28,6 @@ public interface QuestionService {
     Boolean disapproveQuestionByModerator(String questionId) ;
 
     Boolean choosingBestAnswer(String questionId, String answerId);
+
+    QuestionListDto getQuestionByOrganiztionId(String organizationId);
 }
