@@ -2,6 +2,8 @@ package com.example.QuestionsService.services.QuestionsImpl;
 
 import com.example.QuestionsService.dtos.Feign.FollowingOrganizationCategoryDTO;
 import com.example.QuestionsService.dtos.requestdto.QuestionDto;
+import com.example.QuestionsService.dtos.requestdto.QuestionIdsDTO;
+import com.example.QuestionsService.dtos.requestdto.TagsDTO;
 import com.example.QuestionsService.dtos.responsedto.*;
 import com.example.QuestionsService.entities.Answer;
 import com.example.QuestionsService.entities.Question;
@@ -9,29 +11,35 @@ import com.example.QuestionsService.repositories.AnswerRepository;
 import com.example.QuestionsService.repositories.QuestionRepository;
 import com.example.QuestionsService.services.FeignService.UserFeign;
 import com.example.QuestionsService.services.QuestionService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.tools.hat.internal.server.QueryListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import static com.sun.tools.internal.xjc.reader.Ring.add;
 
 @Service
 public class QuestionsServiceImpl implements QuestionService {
+    public static final String QUORA = "quora";
     @Autowired
     QuestionRepository questionRepository;
     @Autowired
     AnswerRepository answerRepository;
     @Autowired
-    private KafkaTemplate<String,Question> kafkaTemplate;
+    private KafkaTemplate<String, Question> kafkaTemplate;
+
+
 //    private KafkaTemplate<String,NotificationDto> kafkaTemplate1;
     private static final String TOPIC = "questionJson";
     @Autowired
-    KafkaTemplate<String, String> kafkaTemplate1;
+    KafkaTemplate<String, NotificationDto> kafkaTemplate1;
     private static final String TOPIC1 = "QuoraListener";
 
     @Override
@@ -99,6 +107,7 @@ public class QuestionsServiceImpl implements QuestionService {
         question1.setUserId(question.getUserId());
         question1.setUserName(question.getUserName());
 
+
 //      question1.setTag(question.getTag());
         if(question.getOrgId()!=null){
             question1.setOrgId(question.getOrgId());
@@ -117,22 +126,33 @@ public class QuestionsServiceImpl implements QuestionService {
 
 
        // send notifications to followers,category followers,tagged persons
+        List<String> taglist=question.getPersonsTag();
+        TagsDTO tagsDTO=new TagsDTO();
+        tagsDTO.setListTags(taglist);
 
-        FollowersAndCategoryFollowingDTO followersAndCategoryFollowingDTO =userFeign.getallFollowers(question2.getUserId(),question2.getCategoryId());
-        System.out.println(followersAndCategoryFollowingDTO.getCategoryFollowing());
+       FollowersAndCatogoriesAndTagsDTO followersAndCategoryFollowingDTO =userFeign.getALlFollowersAndCategoriesAndTags(tagsDTO,question2.getUserId(),question2.getCategoryId());
+        System.out.println(followersAndCategoryFollowingDTO.getCategoryFollowers());
         System.out.println(followersAndCategoryFollowingDTO.getFollowers());
+        System.out.println(followersAndCategoryFollowingDTO.getTags());
         NotificationDto notificationDto=new NotificationDto();
-        notificationDto.setAppId("quora");
-        notificationDto.setTitle(question.getUserName()+"ha posted a question");
+        notificationDto.setAppId(QUORA);
+        notificationDto.setTitle(question.getUserName()+" posted a new question");
         notificationDto.setUserId(followersAndCategoryFollowingDTO.getFollowers());
-        try {
-            kafkaTemplate1.send(TOPIC1, (new ObjectMapper()).writeValueAsString(notificationDto));
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-//        kafkaTemplate1.send(TOPIC1, notificationDto);
+
+            kafkaTemplate1.send(TOPIC1, notificationDto);
+           NotificationDto notificationDto1=new NotificationDto();
+           notificationDto1.setAppId(QUORA);
+           notificationDto1.setUserId(followersAndCategoryFollowingDTO.getCategoryFollowers());
+           notificationDto1.setTitle("New Question posted in "+question.getCategoryId()+"category");
+
+            kafkaTemplate1.send(TOPIC1, notificationDto1);
+        NotificationDto notificationDto2=new NotificationDto();
+        notificationDto1.setAppId(QUORA);
+        notificationDto1.setUserId(followersAndCategoryFollowingDTO.getTags());
+        notificationDto1.setTitle(question.getUserName()+" has asked you a Question");
+        kafkaTemplate1.send(TOPIC1, notificationDto2);
         //send data
-        //send the notif to
+        //send the notif to tagged
 
 
         return  question2;
@@ -151,7 +171,7 @@ public class QuestionsServiceImpl implements QuestionService {
         if(question.getLikeCount()!=null) {
             List<String> list=question.getLikeUserList();
             List<String> list1=question.getDislikeUserList();
-            if(!list.contains(userId) && !list1.contains(userId)) {
+            if(!list.contains(userId) && (list1==null || !list1.contains(userId))) {
                 list.add(userId);
                 question.setLikeUserList(list);
                 question.setLikeCount(question.getLikeCount() + 1);
@@ -175,18 +195,50 @@ public class QuestionsServiceImpl implements QuestionService {
             }
         }
 
-
+        questionRepository.save(question);
 
         // send data and notification
 
         List<String> followerslist=userFeign.getOnlyFollowers(question.getUserId());
         System.out.println(followerslist);
 
+        NotificationDto notificationDto1=new NotificationDto();
+        notificationDto1.setAppId(QUORA);
+        notificationDto1.setUserId(followerslist);
+        notificationDto1.setTitle(question.getUserName()+"got a like on his question");
+        kafkaTemplate1.send(TOPIC1, notificationDto1);
+        NotificationDto notificationDto2=new NotificationDto();
+        notificationDto2.setAppId(QUORA);
 
-        questionRepository.save(question);
+        List<String> list=new ArrayList<>();
+        list.add(question.getUserId());
+        notificationDto2.setUserId(list);
+        notificationDto1.setTitle("You got a like on your Question");
+        kafkaTemplate1.send(TOPIC1, notificationDto2);
+
 
         return  question.getQuestionId();
     }
+
+    @Override
+    public QuestionListDto getAllQuestionForApproval(QuestionIdsDTO questionIdsDTO) {
+//        System.out.println(questionList);
+        List<Question> questions=new ArrayList<>();
+        List<String> questionList=questionIdsDTO.getListOfQuestionId();
+        for(String id:questionList){
+            Optional<Question> questionOptional =questionRepository.findById(id);
+            Question question=null;
+            if(questionOptional.isPresent())
+                question=questionOptional.get();
+
+            questions.add(question);
+
+        }
+        QuestionListDto questionListDto=new QuestionListDto();
+        questionListDto.setQuestionList(questions);
+        return questionListDto;
+    }
+
     @Override
     public  String disLike(String questionid,String userId){
         Optional<Question> questionOptional =questionRepository.findById(questionid);
@@ -200,7 +252,7 @@ public class QuestionsServiceImpl implements QuestionService {
 
             List<String> list=question.getDislikeUserList();
             List<String> list1=question.getLikeUserList();
-            if(!list.contains(userId) && !list1.contains(userId)) {
+            if(!list.contains(userId) && (list1==null || !list1.contains(userId))) {
                 list.add(userId);
                 question.setDislikeUserList(list);
                 question.setDislikeCount(question.getDislikeCount() + 1);
@@ -272,6 +324,19 @@ return true;
     }
 
     @Override
+    public QuestionListDto getQuestionsByCategory(QuestionIdsDTO questionIdsDTO) {
+        QuestionListDto questionListDto=new QuestionListDto();
+        List<Question> list=new ArrayList<>();
+        for(String id: questionIdsDTO.getListOfQuestionId()){
+            List<Question> questionList=questionRepository.findAllByCategoryId(id);
+            list.addAll(questionList);
+        }
+
+        questionListDto.setQuestionList(list);
+        return      questionListDto;
+    }
+
+    @Override
     public QuestionListDto getQuestionsByUserIdApproved(String userId) {
         List<Question> list =  questionRepository.findAllByUserId(userId);
         QuestionListDto questionListDto=new QuestionListDto();
@@ -287,35 +352,98 @@ return true;
     }
 
     @Override
+    public List<Question> getFeedPaginated(String userId) throws ExecutionException, InterruptedException {
+        Set<Question> finalList=new HashSet<Question>();
+        FeedDto feedDto=new FeedDto();
+        FollowingOrganizationCategoryDTO followingOrganizationCategoryDTO=userFeign.getListOfIds(userId);
+        CompletableFuture<Set<Question>> process1 = CompletableFuture.supplyAsync(() -> {
+            Set<Question> chunk1 = new HashSet<>();
+            List<String> followinglist = followingOrganizationCategoryDTO.getFollowing();
+            if (followinglist != null) {
+                for (String id : followinglist) {
+                    List<Question> list = questionRepository.findAllByUserId(id);
+                    chunk1.addAll(list);
+                }
+            }
+            return chunk1;
+        });
+        CompletableFuture<Set<Question >> process2 = CompletableFuture.supplyAsync(() -> {
+            Set<Question> chunk2 = new HashSet<>();
+            List<String> categorylist = followingOrganizationCategoryDTO.getCategories();
+            if (categorylist != null) {
+                for (String id : categorylist) {
+                    List<Question> list = questionRepository.findAllByCategoryId(id);
+                   chunk2.addAll(list);
+                }
+            }
+           return chunk2;
+        });
+        CompletableFuture<Set<Question>> process3 = CompletableFuture.supplyAsync(() -> {
+            Set<Question> chunk3 = new HashSet<>();
+            List<String> organizationlist=followingOrganizationCategoryDTO.getOrganization();
+            if(organizationlist!=null) {
+                for (String id : organizationlist) {
+                    List<Question> list = questionRepository.findAllByOrgId(id);
+                   chunk3.addAll(list);
+                }
+            }
+            return chunk3;
+        });
+        Set<Question> fl = process1.thenCombineAsync(process2, this::combine).thenCombineAsync(process3, this::combine).get();
+        List<Question> list3=new ArrayList<>();
+        for(Question question:fl){
+            list3.add(question);
+        }
+
+        return  list3;
+
+    }
+
+
+    private Set<Question> combine(Set<Question> questions1, Set<Question> questions2) {
+        questions1.addAll(questions2);
+        return questions1;
+    }
+
+    @Override
     public List<Question> getFeed(String userId) {
         Set<Question> finalList=new HashSet<Question>();
         FeedDto feedDto=new FeedDto();
        FollowingOrganizationCategoryDTO followingOrganizationCategoryDTO=userFeign.getListOfIds(userId);
-     for(String id:  followingOrganizationCategoryDTO.getFollowing()){
-         List<Question> list=questionRepository.findAllByUserId(id);
-         for(Question question:list){
-             finalList.add(question);
-         }
+       List<String> followinglist=followingOrganizationCategoryDTO.getFollowing();
+       if(followinglist!=null) {
+           for (String id : followinglist) {
+               List<Question> list = questionRepository.findAllByUserId(id);
+               for (Question question : list) {
+                   finalList.add(question);
+               }
 
-     }
-        for(String id:  followingOrganizationCategoryDTO.getCategories()){
-            List<Question> list=questionRepository.findAllByCategoryId(id);
-            for(Question question:list){
-                finalList.add(question);
-            }
-        }
-        for(String id:  followingOrganizationCategoryDTO.getOrganization()){
-            List<Question> list=questionRepository.findAllByOrgId(id);
-            for(Question question:list){
-                finalList.add(question);
-            }
-        }
+           }
+       }
+       List<String> categorylist=followingOrganizationCategoryDTO.getCategories();
+       if(categorylist!=null) {
+           for (String id : categorylist) {
+               List<Question> list = questionRepository.findAllByCategoryId(id);
+               for (Question question : list) {
+                   finalList.add(question);
+               }
+           }
+       }
+
+        List<String> organizationlist=followingOrganizationCategoryDTO.getOrganization();
+       if(organizationlist!=null) {
+           for (String id : organizationlist) {
+               List<Question> list = questionRepository.findAllByOrgId(id);
+               for (Question question : list) {
+                   finalList.add(question);
+               }
+           }
+       }
         List<Question> list3=new ArrayList<>();
         for(Question question:finalList){
             list3.add(question);
         }
-//feedDto.setFeed(finalList);
-//     return  feedDto;
+
         return  list3;
 
     }

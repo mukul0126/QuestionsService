@@ -3,6 +3,7 @@ package com.example.QuestionsService.controllers;
 
 import com.example.QuestionsService.dtos.requestdto.CategoryDto;
 import com.example.QuestionsService.dtos.requestdto.QuestionDto;
+import com.example.QuestionsService.dtos.requestdto.QuestionIdsDTO;
 import com.example.QuestionsService.dtos.responsedto.QuestionListDto;
 import com.example.QuestionsService.dtos.responsedto.ResponseString;
 import com.example.QuestionsService.entities.Category;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 @CrossOrigin(origins = "*",allowedHeaders = "*")
 @RestController
@@ -56,6 +58,11 @@ public class QuestionsController {
 
         return questionService.getFeed(userId);
     }
+    @GetMapping(value = "/getLoginFeedPaginated/{userId}")
+    public List<Question> getLoginFeedPaginated(@PathVariable("userId") String userId) throws ExecutionException, InterruptedException{
+
+        return questionService.getFeedPaginated(userId);
+    }
     @GetMapping(value = "/getQuestionsByUserId/{userId}")
     public QuestionListDto getQuestionsByUserId(@PathVariable("userId") String userid){
         return  questionService.getQuestionsById(userid);
@@ -85,7 +92,16 @@ public class QuestionsController {
    public  QuestionListDto getQuestionByOrganiztionId(@PathVariable("organizationId") String organizationId){
         return  questionService.getQuestionByOrganiztionId(organizationId);
     }
+    @PostMapping(value="/getAllQuestion")
+    QuestionListDto getAllQuestionForApproval(@RequestBody QuestionIdsDTO questionList ){
+       return questionService.getAllQuestionForApproval(questionList);
+    }
+    @PostMapping(value="/getQuestionsByCategory")
+    QuestionListDto  getQuestionsByCategory(@RequestBody QuestionIdsDTO questionIdsDTO){
 
+        System.out.println(questionIdsDTO);
+        return questionService.getQuestionsByCategory(questionIdsDTO);
+    }
 
 
 

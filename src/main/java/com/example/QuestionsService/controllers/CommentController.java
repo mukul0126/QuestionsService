@@ -3,6 +3,7 @@ package com.example.QuestionsService.controllers;
 import com.example.QuestionsService.dtos.requestdto.AnswerDto;
 import com.example.QuestionsService.dtos.requestdto.CommentDto;
 import com.example.QuestionsService.dtos.responsedto.CommentListDto;
+import com.example.QuestionsService.dtos.responsedto.ResponseString;
 import com.example.QuestionsService.entities.Comment;
 import com.example.QuestionsService.entities.Question;
 import com.example.QuestionsService.services.CommentService;
@@ -21,12 +22,15 @@ public class CommentController {
     CommentService commentService;
 
     @PostMapping(value = "/addcomment")
-    public ResponseEntity<String> addcomment(@RequestBody CommentDto commentDto) {
+    public ResponseString addcomment(@RequestBody CommentDto commentDto) {
 
       Comment comment =new Comment();
         BeanUtils.copyProperties(commentDto,comment);
         Comment comment1=commentService.save(comment);
-        return new ResponseEntity<String>(comment1.getCommentId(),HttpStatus.CREATED);
+       String id=comment1.getCommentId();
+        ResponseString responseString=new ResponseString();
+        responseString.setId(id);
+        return responseString;
 
     }
 

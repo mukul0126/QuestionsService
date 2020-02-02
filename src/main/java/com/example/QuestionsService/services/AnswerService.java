@@ -1,6 +1,8 @@
 package com.example.QuestionsService.services;
 
 import com.example.QuestionsService.dtos.requestdto.AnswerDto;
+import com.example.QuestionsService.dtos.requestdto.AnswerIdsDTO;
+import com.example.QuestionsService.dtos.responsedto.AnswerListDto;
 import com.example.QuestionsService.dtos.responsedto.QuestionAnswerDto;
 import com.example.QuestionsService.entities.Answer;
 
@@ -18,4 +20,6 @@ public interface AnswerService {
     Boolean approveAnswerByModerator(String answerId);
 
     Boolean disapproveAnswerByModerator(String answerId);
+
+    AnswerListDto getAllAnswerForApproval(AnswerIdsDTO answerList);
 }

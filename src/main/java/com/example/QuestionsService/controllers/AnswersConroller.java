@@ -2,7 +2,9 @@ package com.example.QuestionsService.controllers;
 
 
 import com.example.QuestionsService.dtos.requestdto.AnswerDto;
+import com.example.QuestionsService.dtos.requestdto.AnswerIdsDTO;
 import com.example.QuestionsService.dtos.requestdto.QuestionDto;
+import com.example.QuestionsService.dtos.responsedto.AnswerListDto;
 import com.example.QuestionsService.dtos.responsedto.QuestionAnswerDto;
 import com.example.QuestionsService.dtos.responsedto.ResponseString;
 import com.example.QuestionsService.entities.Answer;
@@ -68,4 +70,11 @@ public class AnswersConroller {
     public Boolean disapproveAnswerByModerator(@PathVariable("answerId")  String answerId){
         return  answerService.disapproveAnswerByModerator(answerId);
     }
+    @PostMapping(value="getAllAnswer")
+    AnswerListDto getAllAnswerForApproval(@RequestBody AnswerIdsDTO answerList ){
+
+        return  answerService.getAllAnswerForApproval(answerList);
+
+    }
+
 }

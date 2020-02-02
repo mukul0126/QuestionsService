@@ -36,22 +36,12 @@ public class Question {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Question question = (Question) o;
-        return Objects.equals(questionId, question.questionId) &&
-                Objects.equals(userId, question.userId) &&
-                Objects.equals(likeCount, question.likeCount) &&
-                Objects.equals(dislikeCount, question.dislikeCount) &&
-                Objects.equals(answersList, question.answersList) &&
-                Objects.equals(categoryId, question.categoryId) &&
-                Objects.equals(questionBody, question.questionBody) &&
-                Objects.equals(date, question.date) &&
-                Objects.equals(approvalFlag, question.approvalFlag) &&
-                Objects.equals(bestAnswerId, question.bestAnswerId) &&
-                Objects.equals(orgId, question.orgId);
+        return Objects.equals(questionId, question.questionId);
     }
 
     @Override
     public int hashCode() {
 
-        return Objects.hash(questionId, userId, likeCount, dislikeCount, answersList, categoryId, questionBody, date, approvalFlag, bestAnswerId, orgId);
+        return Objects.hash(questionId);
     }
 }

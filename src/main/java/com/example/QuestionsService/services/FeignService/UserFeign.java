@@ -1,10 +1,13 @@
 package com.example.QuestionsService.services.FeignService;
 
 import com.example.QuestionsService.dtos.Feign.FollowingOrganizationCategoryDTO;
+import com.example.QuestionsService.dtos.requestdto.TagsDTO;
 import com.example.QuestionsService.dtos.responsedto.FollowersAndCategoryFollowingDTO;
+import com.example.QuestionsService.dtos.responsedto.FollowersAndCatogoriesAndTagsDTO;
 import com.example.QuestionsService.dtos.responsedto.OrganizationFollowersAndCategoryFollowersDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
@@ -40,4 +43,6 @@ public interface UserFeign {
     List<String> getOnlyFollowers(@PathVariable("userId") String userId);
     @RequestMapping(method = RequestMethod.GET, value = "user/getOrganizationFollwers/{organizationId}/{categoryId}")
     OrganizationFollowersAndCategoryFollowersDTO getOrganizationFollowers(@PathVariable("organizationId") String organizationId, @PathVariable("categoryId")String categoryId);
+    @RequestMapping(method = RequestMethod.POST, value = "user/getListOfTagsWithCategoryWithAllFollowers/{userId}/{categoryId}")
+    FollowersAndCatogoriesAndTagsDTO getALlFollowersAndCategoriesAndTags(@RequestBody TagsDTO list, @PathVariable("userId") String userId, @PathVariable("categoryId") String categoryId);
 }

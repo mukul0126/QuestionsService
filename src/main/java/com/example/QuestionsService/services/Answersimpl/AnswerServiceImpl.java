@@ -1,8 +1,8 @@
 package com.example.QuestionsService.services.Answersimpl;
 
 import com.example.QuestionsService.dtos.requestdto.AnswerDto;
-import com.example.QuestionsService.dtos.responsedto.FollowersAndCategoryFollowingDTO;
-import com.example.QuestionsService.dtos.responsedto.QuestionAnswerDto;
+import com.example.QuestionsService.dtos.requestdto.AnswerIdsDTO;
+import com.example.QuestionsService.dtos.responsedto.*;
 import com.example.QuestionsService.entities.Answer;
 import com.example.QuestionsService.entities.Question;
 import com.example.QuestionsService.repositories.AnswerRepository;
@@ -12,11 +12,14 @@ import com.example.QuestionsService.services.FeignService.UserFeign;
 import com.example.QuestionsService.services.QuestionService;
 import com.example.QuestionsService.services.QuestionsImpl.QuestionsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import static com.example.QuestionsService.services.QuestionsImpl.QuestionsServiceImpl.QUORA;
 
 @Service
 public class AnswerServiceImpl implements AnswerService {
@@ -28,6 +31,9 @@ public class AnswerServiceImpl implements AnswerService {
     QuestionRepository questionRepository;
     @Autowired
     UserFeign userFeign;
+    @Autowired
+    KafkaTemplate<String, NotificationDto> kafkaTemplate1;
+    private static final String TOPIC1 = "QuoraListener";
     @Override
     public Answer save(AnswerDto answerDto){
         Answer answer=new Answer();
@@ -56,8 +62,42 @@ public class AnswerServiceImpl implements AnswerService {
         System.out.println(followersAndCategoryFollowingDTO.getCategoryFollowing());
         System.out.println(followersAndCategoryFollowingDTO.getFollowers());
         //get owner id of answer
+        NotificationDto notificationDto=new NotificationDto();
+        notificationDto.setAppId(QUORA);
+        notificationDto.setTitle(question.getUserName()+" Got Answer on his post");
+        notificationDto.setUserId(followersAndCategoryFollowingDTO.getFollowers());
+        kafkaTemplate1.send(TOPIC1, notificationDto);
+        NotificationDto notificationDto1=new NotificationDto();
+        notificationDto1.setAppId(QUORA);
+        notificationDto1.setUserId(followersAndCategoryFollowingDTO.getCategoryFollowing());
+        notificationDto1.setTitle(" Question of  "+question.getCategoryId()+"category" +" got an Answer");
+        kafkaTemplate1.send(TOPIC1, notificationDto1);
+        NotificationDto notificationDto2=new NotificationDto();
+        notificationDto2.setAppId(QUORA);
+        List<String> list=new ArrayList<>();
+        list.add(question.getUserId());
+        notificationDto2.setUserId(list);
+        notificationDto1.setTitle("You got a Answer on your Question");
 
         return  answer1;
+    }
+
+    @Override
+    public AnswerListDto getAllAnswerForApproval(AnswerIdsDTO answerList) {
+        List<Answer> answers=new ArrayList<>();
+        List<String> answerlist=answerList.getListOfAnswer();
+        for(String id:answerlist){
+            Optional<Answer> answerOptional =answerRepository.findById(id);
+            Answer answer=null;
+            if(answerOptional.isPresent())
+                answer=answerOptional.get();
+
+            answers.add(answer);
+
+        }
+       AnswerListDto answerListDto=new AnswerListDto();
+      answerListDto.setListOfAnswerIds(answers);
+        return answerListDto;
     }
 
     @Override
@@ -89,7 +129,7 @@ public class AnswerServiceImpl implements AnswerService {
         if(answer.getLikeCount()!=null) {
             List<String> list=answer.getLikeUserList();
             List<String> list1= answer.getDislikeUserList();
-            if(!list.contains(userId) && !list1.contains(userId)) {
+            if(!list.contains(userId) && (list1==null || !list1.contains(userId))) {
                 list.add(userId);
                 answer.setLikeUserList(list);
                 answer.setLikeCount(answer.getLikeCount() + 1);
@@ -167,7 +207,7 @@ public class AnswerServiceImpl implements AnswerService {
         if(answer.getDislikeCount()!=null) {
             List<String> list=answer.getDislikeUserList();
             List<String> list1=answer.getLikeUserList();
-            if(!list.contains(userId) && !list1.contains(userId)) {
+            if(!list.contains(userId) && (list1==null || !list1.contains(userId))) {
                 list.add(userId);
                 answer.setDislikeUserList(list);
                 answer.setDislikeCount(answer.getDislikeCount() + 1);
