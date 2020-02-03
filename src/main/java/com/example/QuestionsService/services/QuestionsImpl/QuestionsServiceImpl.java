@@ -11,19 +11,14 @@ import com.example.QuestionsService.repositories.AnswerRepository;
 import com.example.QuestionsService.repositories.QuestionRepository;
 import com.example.QuestionsService.services.FeignService.UserFeign;
 import com.example.QuestionsService.services.QuestionService;
-import com.sun.tools.hat.internal.server.QueryListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
-import static com.sun.tools.internal.xjc.reader.Ring.add;
 
 @Service
 public class QuestionsServiceImpl implements QuestionService {
@@ -40,7 +35,10 @@ public class QuestionsServiceImpl implements QuestionService {
     private static final String TOPIC = "questionJson";
     @Autowired
     KafkaTemplate<String, NotificationDto> kafkaTemplate1;
-    private static final String TOPIC1 = "QuoraListener";
+    private static final String TOPIC1 = "QuoraListener1";
+    @Autowired
+    KafkaTemplate<String, CRMDto> kafkaTemplate2;
+    private static final String TOPIC2 = "CRMListener";
 
     @Override
     public Boolean approveQuestionByModerator(String questionId) {
@@ -135,21 +133,21 @@ public class QuestionsServiceImpl implements QuestionService {
         System.out.println(followersAndCategoryFollowingDTO.getFollowers());
         System.out.println(followersAndCategoryFollowingDTO.getTags());
         NotificationDto notificationDto=new NotificationDto();
-        notificationDto.setAppId(QUORA);
-        notificationDto.setTitle(question.getUserName()+" posted a new question");
+        notificationDto.setTitle("QUESTION POSTED");
+        notificationDto.setMessage(question.getUserName()+" posted a new question");
         notificationDto.setUserId(followersAndCategoryFollowingDTO.getFollowers());
 
             kafkaTemplate1.send(TOPIC1, notificationDto);
            NotificationDto notificationDto1=new NotificationDto();
-           notificationDto1.setAppId(QUORA);
+           notificationDto1.setTitle("QUESTION POSTED");
            notificationDto1.setUserId(followersAndCategoryFollowingDTO.getCategoryFollowers());
-           notificationDto1.setTitle("New Question posted in "+question.getCategoryId()+"category");
+           notificationDto1.setMessage("New Question posted in "+question.getCategoryId()+"category");
 
             kafkaTemplate1.send(TOPIC1, notificationDto1);
         NotificationDto notificationDto2=new NotificationDto();
-        notificationDto1.setAppId(QUORA);
-        notificationDto1.setUserId(followersAndCategoryFollowingDTO.getTags());
-        notificationDto1.setTitle(question.getUserName()+" has asked you a Question");
+        notificationDto2.setTitle("QUESTION POSTED");
+        notificationDto2.setUserId(followersAndCategoryFollowingDTO.getTags());
+        notificationDto2.setMessage(question.getUserName()+" has asked you a Question");
         kafkaTemplate1.send(TOPIC1, notificationDto2);
         //send data
         //send the notif to tagged
@@ -203,17 +201,17 @@ public class QuestionsServiceImpl implements QuestionService {
         System.out.println(followerslist);
 
         NotificationDto notificationDto1=new NotificationDto();
-        notificationDto1.setAppId(QUORA);
+        notificationDto1.setTitle("QUESTION LIKED");
         notificationDto1.setUserId(followerslist);
-        notificationDto1.setTitle(question.getUserName()+"got a like on his question");
+        notificationDto1.setMessage(question.getUserName()+"got a like on his question");
         kafkaTemplate1.send(TOPIC1, notificationDto1);
         NotificationDto notificationDto2=new NotificationDto();
-        notificationDto2.setAppId(QUORA);
+        notificationDto2.setTitle("QUESTION LIKED");
 
         List<String> list=new ArrayList<>();
         list.add(question.getUserId());
         notificationDto2.setUserId(list);
-        notificationDto1.setTitle("You got a like on your Question");
+        notificationDto1.setMessage("You got a like on your Question");
         kafkaTemplate1.send(TOPIC1, notificationDto2);
 
 
@@ -225,15 +223,17 @@ public class QuestionsServiceImpl implements QuestionService {
 //        System.out.println(questionList);
         List<Question> questions=new ArrayList<>();
         List<String> questionList=questionIdsDTO.getListOfQuestionId();
-        for(String id:questionList){
-            Optional<Question> questionOptional =questionRepository.findById(id);
-            Question question=null;
-            if(questionOptional.isPresent())
-                question=questionOptional.get();
+if(questionList!=null && questionList.size()!=0) {
+    for (String id : questionList) {
+        Optional<Question> questionOptional = questionRepository.findById(id);
+        Question question = null;
+        if (questionOptional.isPresent())
+            question = questionOptional.get();
 
-            questions.add(question);
+        questions.add(question);
 
-        }
+    }
+}
         QuestionListDto questionListDto=new QuestionListDto();
         questionListDto.setQuestionList(questions);
         return questionListDto;
@@ -281,6 +281,13 @@ public class QuestionsServiceImpl implements QuestionService {
         // send data and notification
         //owner id par bhi notification
         questionRepository.save(question);
+
+        CRMDto crmDto=new CRMDto();
+        crmDto.setLeadId(userId);
+        crmDto.setPostPersonId(question.getUserId());
+        crmDto.setDescriptionOfPost(question.getQuestionBody());
+        crmDto.setTicketId(question.getQuestionId());
+        kafkaTemplate2.send(TOPIC2,crmDto);
 
         return  question.getQuestionId();
     }

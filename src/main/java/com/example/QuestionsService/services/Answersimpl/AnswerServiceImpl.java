@@ -63,21 +63,22 @@ public class AnswerServiceImpl implements AnswerService {
         System.out.println(followersAndCategoryFollowingDTO.getFollowers());
         //get owner id of answer
         NotificationDto notificationDto=new NotificationDto();
-        notificationDto.setAppId(QUORA);
-        notificationDto.setTitle(question.getUserName()+" Got Answer on his post");
+        notificationDto.setTitle("Answer Posted");
+        notificationDto.setMessage(question.getUserName()+" Got Answer on his post");
         notificationDto.setUserId(followersAndCategoryFollowingDTO.getFollowers());
         kafkaTemplate1.send(TOPIC1, notificationDto);
         NotificationDto notificationDto1=new NotificationDto();
-        notificationDto1.setAppId(QUORA);
+        notificationDto1.setTitle("Answer Posted");
         notificationDto1.setUserId(followersAndCategoryFollowingDTO.getCategoryFollowing());
-        notificationDto1.setTitle(" Question of  "+question.getCategoryId()+"category" +" got an Answer");
+        notificationDto1.setMessage(" Question of  "+question.getCategoryId()+"category" +" got an Answer");
         kafkaTemplate1.send(TOPIC1, notificationDto1);
         NotificationDto notificationDto2=new NotificationDto();
-        notificationDto2.setAppId(QUORA);
+        notificationDto2.setTitle("Answer Posted");
         List<String> list=new ArrayList<>();
         list.add(question.getUserId());
         notificationDto2.setUserId(list);
-        notificationDto1.setTitle("You got a Answer on your Question");
+        notificationDto1.setMessage("You got a Answer on your Question");
+        kafkaTemplate1.send(TOPIC1, notificationDto2);
 
         return  answer1;
     }
@@ -103,15 +104,20 @@ public class AnswerServiceImpl implements AnswerService {
     @Override
     public QuestionAnswerDto getAnswersByQuestionId(String questionId) {
         Optional<Question> optionalQuestion=questionRepository.findById(questionId);
-        Question question=optionalQuestion.get();
+        Question question=new Question();
+        if(optionalQuestion.isPresent())
+         question=optionalQuestion.get();
         QuestionAnswerDto questionAnswerDto=new QuestionAnswerDto();
         questionAnswerDto.setQuestion(question);
+
         List<Answer> list=answerRepository.findAllByQuestionId(questionId);
             List<Answer> list2=new ArrayList<>();
-        for(Answer answer:list){
-            if(answer.getApprovalFlag()==true)
-                list2.add(answer);
-        }
+            if(list!=null) {
+                for (Answer answer : list) {
+                    if (answer.getApprovalFlag() == true)
+                        list2.add(answer);
+                }
+            }
         questionAnswerDto.setAnswerList(list2);
         return  questionAnswerDto;
     }

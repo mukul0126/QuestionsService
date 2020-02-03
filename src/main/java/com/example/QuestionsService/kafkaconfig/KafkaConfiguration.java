@@ -35,13 +35,24 @@ import java.util.Map;
             config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
             return new DefaultKafkaProducerFactory<>(config);
         }
-
+        @Bean
+        public ProducerFactory<String, ?> producerFactory2() {
+            Map<String, Object> config = new HashMap<>();
+            config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:9092");
+            config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+            config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+            return new DefaultKafkaProducerFactory<>(config);
+        }
         @Bean
         public KafkaTemplate<String, ?> kafkaTemplate() {
             return new KafkaTemplate<>(producerFactory());
         }
         @Bean
         public KafkaTemplate<String, ?> kafkaTemplate1() {
+            return new KafkaTemplate<>(producerFactory1());
+        }
+        @Bean
+        public KafkaTemplate<String, ?> kafkaTemplate2() {
             return new KafkaTemplate<>(producerFactory1());
         }
     }

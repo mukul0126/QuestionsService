@@ -36,6 +36,7 @@ public class CommentServiceIm implements CommentService {
         if(comment1.getParentId()==null)
         {
             Optional<Answer> optionalAnswer =answerRepository.findById(comment1.getAnswerId());
+
             Answer answer=optionalAnswer.get();
             List<String> list=answer.getCommentsList();
             if(list==null){
